@@ -34,5 +34,27 @@ fn main() {
 
     println!("Welcome to DiskScope!");
     println!("Selected directory: {}", cli.directory.display());
-    println!("Directory scanning coming soon...");
+
+    // read contents of selected directory
+    let entries = match scanner::list_directory(&cli.directory) {
+        Ok(entries) => entries,
+        Err(error) => {
+            eprintln!("Error: {}", error);
+            std::process::exit(1);
+        }
+    };
+
+    println!();
+    println!("Directory contents:");
+
+    if entries.is_empty() {
+        println!("  This directory is empty.");
+    } else {
+        for entry in &entries {
+            println!("  {}", entry.file_name().to_string_lossy());
+        }
+    }
+
+    println!();
+    println!("Total entries: {}", entries.len());
 }
