@@ -57,4 +57,26 @@ fn main() {
 
     println!();
     println!("Total entries: {}", entries.len());
+
+    println!();
+    println!("Files found recursively:");
+
+    let files = match scanner::scan_directory(&cli.directory) {
+        Ok(files) => files,
+        Err(error) => {
+            eprintln!("Error: {}", error);
+            std::process::exit(1);
+        }
+    };
+
+    if files.is_empty() {
+        println!("  No files found.");
+    } else {
+        for file in &files {
+            println!("  {}", file.display());
+        }
+    }
+
+    println!();
+    println!("Total files found: {}", files.len());
 }
