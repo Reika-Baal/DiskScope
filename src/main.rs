@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -7,10 +8,13 @@ use clap::Parser;
     about = "A disk space analyser built in Rust.",
     long_about = None
 )]
-struct Cli {}
+struct Cli {
+    #[arg(value_name = "DIRECTORY", default_value = ".")]
+    directory: PathBuf,
+}
 
 fn main() {
-    let _cli = Cli::parse();
+    let cli = Cli::parse();
 
     println!("====================================");
     println!("             DiskScope              ");
@@ -21,5 +25,6 @@ fn main() {
     println!();
 
     println!("Welcome to DiskScope!");
+    println!("Selected directory: {}", cli.directory.display());
     println!("Directory scanning coming soon...");
 }
