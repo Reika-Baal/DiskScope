@@ -1,7 +1,7 @@
+mod scanner;
+
 use clap::Parser;
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -18,8 +18,8 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    // Validate the selected directory before continuing.
-    if let Err(error) = validate_directory(&cli.directory) {
+    // validate directory using scanner module.
+    if let Err(error) = scanner::validate_directory(&cli.directory) {
         eprintln!("Error: {}", error);
         std::process::exit(1);
     }
@@ -35,20 +35,4 @@ fn main() {
     println!("Welcome to DiskScope!");
     println!("Selected directory: {}", cli.directory.display());
     println!("Directory scanning coming soon...");
-}
-
-fn validate_directory(path: &Path) -> Result<(), String> {
-    let metadata = fs::metadata(path).map_err(|error| {
-        if error.kind() == io::ErrorKind::NotFound {
-            format!("Path does not exist: {}", path.display())
-        } else {
-            format!("Cannot access '{}': {}", path.display(), error)
-        }
-    })?;
-
-    if !metadata.is_dir() {
-        return Err(format!("Not a directory: {}", path.display()));
-    }
-
-    Ok(())
 }
