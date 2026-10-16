@@ -1,3 +1,4 @@
+mod format;
 mod scanner;
 
 use clap::Parser;
@@ -71,7 +72,7 @@ fn main() {
 
     let mut total_size: u64 = 0;
 
-    // Determine the column width based on the longest file path.
+    // the column width based on the longest file path
     let name_width = files
         .iter()
         .map(|file| file.display().to_string().chars().count())
@@ -79,14 +80,9 @@ fn main() {
         .unwrap_or(4)
         .max(4);
 
-    // Display the table header.
+    // show the table header
     println!();
-    println!(
-        "{:<width$} | {:>15}",
-        "FILE",
-        "SIZE (BYTES)",
-        width = name_width
-    );
+    println!("{:<width$} | {:>15}", "FILE", "SIZE", width = name_width);
 
     println!("{}-+-{}", "-".repeat(name_width), "-".repeat(15));
 
@@ -112,17 +108,22 @@ fn main() {
 
             let file_name = file.display().to_string();
 
-            println!("{:<width$} | {:>15}", file_name, size, width = name_width);
+            println!(
+                "{:<width$} | {:>15}",
+                file_name,
+                format::format_size(size),
+                width = name_width
+            );
         }
     }
 
-    // Display the summary underneath the table.
+    // show the summary underneath the table
     println!("{}-+-{}", "-".repeat(name_width), "-".repeat(15));
 
     println!(
         "{:<width$} | {:>15}",
         "TOTAL",
-        total_size,
+        format::format_size(total_size),
         width = name_width
     );
 
