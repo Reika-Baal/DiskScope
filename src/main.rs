@@ -69,6 +69,8 @@ fn main() {
         }
     };
 
+    let mut total_size: u64 = 0;
+
     if files.is_empty() {
         println!("  No files found.");
     } else {
@@ -81,10 +83,20 @@ fn main() {
                 }
             };
 
+            // add the current file size to total directory total
+            total_size = match total_size.checked_add(size) {
+                Some(total) => total,
+                None => {
+                    eprintln!("Error: Total directory size exceeds the supported limit.");
+                    std::process::exit(1);
+                }
+            };
+
             println!("  {} ({} bytes)", file.display(), size);
         }
     }
 
     println!();
     println!("Total files found: {}", files.len());
+    println!("Total directory size: {} bytes", total_size);
 }
