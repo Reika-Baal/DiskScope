@@ -73,7 +73,15 @@ fn main() {
         println!("  No files found.");
     } else {
         for file in &files {
-            println!("  {}", file.display());
+            let size = match scanner::get_file_size(file) {
+                Ok(size) => size,
+                Err(error) => {
+                    eprintln!("Error: {}", error);
+                    std::process::exit(1);
+                }
+            };
+
+            println!("  {} ({} bytes)", file.display(), size);
         }
     }
 

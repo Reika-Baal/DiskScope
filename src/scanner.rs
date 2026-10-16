@@ -82,3 +82,20 @@ fn scan_recursive(path: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
 
     Ok(())
 }
+
+/// get the size of a regular file in bytes
+pub fn get_file_size(path: &Path) -> Result<u64, String> {
+    let metadata = fs::metadata(path).map_err(|error| {
+        format!(
+            "Cannot retrieve metadata for '{}': {}",
+            path.display(),
+            error
+        )
+    })?;
+
+    if !metadata.is_file() {
+        return Err(format!("Not a regular file: {}", path.display()));
+    }
+
+    Ok(metadata.len())
+}
