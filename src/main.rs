@@ -71,8 +71,27 @@ fn main() {
 
     let mut total_size: u64 = 0;
 
+    // Determine the column width based on the longest file path.
+    let name_width = files
+        .iter()
+        .map(|file| file.display().to_string().chars().count())
+        .max()
+        .unwrap_or(4)
+        .max(4);
+
+    // Display the table header.
+    println!();
+    println!(
+        "{:<width$} | {:>15}",
+        "FILE",
+        "SIZE (BYTES)",
+        width = name_width
+    );
+
+    println!("{}-+-{}", "-".repeat(name_width), "-".repeat(15));
+
     if files.is_empty() {
-        println!("  No files found.");
+        println!("No files found.");
     } else {
         for file in &files {
             let size = match scanner::get_file_size(file) {
@@ -83,7 +102,6 @@ fn main() {
                 }
             };
 
-            // add the current file size to total directory total
             total_size = match total_size.checked_add(size) {
                 Some(total) => total,
                 None => {
@@ -92,11 +110,22 @@ fn main() {
                 }
             };
 
-            println!("  {} ({} bytes)", file.display(), size);
+            let file_name = file.display().to_string();
+
+            println!("{:<width$} | {:>15}", file_name, size, width = name_width);
         }
     }
 
+    // Display the summary underneath the table.
+    println!("{}-+-{}", "-".repeat(name_width), "-".repeat(15));
+
+    println!(
+        "{:<width$} | {:>15}",
+        "TOTAL",
+        total_size,
+        width = name_width
+    );
+
     println!();
     println!("Total files found: {}", files.len());
-    println!("Total directory size: {} bytes", total_size);
 }
