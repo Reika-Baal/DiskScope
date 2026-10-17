@@ -71,6 +71,7 @@ fn main() {
     };
 
     let mut total_size: u64 = 0;
+    let mut largest_files: Vec<(PathBuf, u64)> = Vec::new();
 
     // the column width based on the longest file path
     let name_width = files
@@ -97,6 +98,8 @@ fn main() {
                     std::process::exit(1);
                 }
             };
+            // store file path & size, ranking
+            largest_files.push((file.clone(), size));
 
             total_size = match total_size.checked_add(size) {
                 Some(total) => total,
@@ -129,4 +132,23 @@ fn main() {
 
     println!();
     println!("Total files found: {}", files.len());
+
+    // sort files by size large first
+    largest_files.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+    println!();
+    println!("Largest files (top 5):");
+
+    if largest_files.is_empty() {
+        println!("  No files found.");
+    } else {
+        for (index, (path, size)) in largest_files.iter().take(5).enumerate() {
+            println!(
+                "  {}. {} ({})",
+                index + 1,
+                path.display(),
+                format::format_size(*size)
+            );
+        }
+    }
 }
