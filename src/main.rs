@@ -23,6 +23,9 @@ struct Cli {
 
     #[arg(long, value_enum, default_value_t = SortBy::Name)]
     sort: SortBy,
+
+    #[arg(long, value_name = "DEPTH")]
+    max_depth: Option<usize>,
 }
 
 fn sort_files(files: &mut [(PathBuf, u64)], sort_by: SortBy) {
@@ -83,7 +86,7 @@ fn main() {
     println!();
     println!("Files found recursively:");
 
-    let files = match scanner::scan_directory(&cli.directory) {
+    let files = match scanner::scan_directory(&cli.directory, cli.max_depth) {
         Ok(files) => files,
         Err(error) => {
             eprintln!("Error: {}", error);

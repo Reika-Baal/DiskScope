@@ -40,19 +40,24 @@ pub fn list_directory(path: &Path) -> Result<Vec<fs::DirEntry>, String> {
 }
 
 /// recursively scans a directory & returns all regular file paths
-pub fn scan_directory(path: &Path) -> Result<Vec<PathBuf>, String> {
+/// optional maximum depth limit how deeply subdirectories are explored
+pub fn scan_directory(path: &Path, max_depth: Option<usize>) -> Result<Vec<PathBuf>, String> {
     let mut files = Vec::new();
 
-    scan_recursive(path, &mut files)?;
+    scan_recursive(path, &mut files, 0, max_depth)?;
 
-    // ensure consistent output regardless of filesystem order
     files.sort();
 
     Ok(files)
 }
 
 /// visits a directory & its subdirectories
-fn scan_recursive(path: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
+fn scan_recursive(
+    path: &Path,
+    files: &mut Vec<PathBuf>,
+    current_depth: usize,
+    max_depth: Option<usize>,
+) -> Result<(), String> {
     let entries = fs::read_dir(path)
         .map_err(|error| format!("Cannot read '{}': {}", path.display(), error))?;
 
@@ -72,10 +77,16 @@ fn scan_recursive(path: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
         }
 
         if file_type.is_dir() {
-            // explore the subdirectory
-            scan_recursive(&entry_path, files)?;
+            // explore the subdirectory if depth limit allowed
+            let can_descend = match max_depth {
+                Some(limit) => current_depth < limit,
+                None => true,
+            };
+
+            if can_descend {
+                scan_recursive(&entry_path, files, current_depth + 1, max_depth)?;
+            }
         } else if file_type.is_file() {
-            // store the discovered file
             files.push(entry_path);
         }
     }
