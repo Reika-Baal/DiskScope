@@ -2,7 +2,7 @@ mod format;
 mod scanner;
 
 use clap::{Parser, ValueEnum};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum SortBy {
@@ -17,6 +17,7 @@ enum SortBy {
     about = "A disk space analyser built in Rust.",
     long_about = None
 )]
+
 struct Cli {
     #[arg(value_name = "DIRECTORY", default_value = ".")]
     directory: PathBuf,
@@ -26,6 +27,9 @@ struct Cli {
 
     #[arg(long, value_name = "DEPTH")]
     max_depth: Option<usize>,
+
+    #[arg(long, value_name = "EXTENSION")]
+    extension: Option<String>,
 }
 
 fn sort_files(files: &mut [(PathBuf, u64)], sort_by: SortBy) {
@@ -38,6 +42,16 @@ fn sort_files(files: &mut [(PathBuf, u64)], sort_by: SortBy) {
             files.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         }
     }
+}
+
+/// check whether a file matches the request
+/// matching is case insensitive
+fn matches_extension(path: &Path, extension: &str) -> bool {
+    let requested_extension = extension.trim_start_matches('.');
+
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case(requested_extension))
 }
 
 fn main() {
@@ -86,13 +100,18 @@ fn main() {
     println!();
     println!("Files found recursively:");
 
-    let files = match scanner::scan_directory(&cli.directory, cli.max_depth) {
+    let mut files = match scanner::scan_directory(&cli.directory, cli.max_depth) {
         Ok(files) => files,
         Err(error) => {
             eprintln!("Error: {}", error);
             std::process::exit(1);
         }
     };
+
+    // filter discover files if extension was provided
+    if let Some(extension) = cli.extension.as_deref() {
+        files.retain(|file| matches_extension(file, extension));
+    }
 
     // Collect file sizes before sorting and displaying results.
     let mut file_data: Vec<(PathBuf, u64)> = Vec::new();
@@ -184,8 +203,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{SortBy, sort_files};
-    use std::path::PathBuf;
+    use super::{SortBy, matches_extension, sort_files};
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn sorts_files_by_name() {
@@ -215,5 +234,26 @@ mod tests {
         assert_eq!(files[0].1, 500);
         assert_eq!(files[1].1, 250);
         assert_eq!(files[2].1, 100);
+    }
+
+    #[test]
+    fn matches_file_extensions() {
+        assert!(matches_extension(Path::new("report.pdf"), "pdf"));
+        assert!(matches_extension(Path::new("image.png"), "png"));
+        assert!(matches_extension(Path::new("main.rs"), "rs"));
+    }
+
+    #[test]
+    fn matches_extensions_case_insensitively() {
+        assert!(matches_extension(Path::new("REPORT.PDF"), "pdf"));
+        assert!(matches_extension(Path::new("photo.PNG"), "PNG"));
+        assert!(matches_extension(Path::new("document.pdf"), ".PDF"));
+    }
+
+    #[test]
+    fn rejects_non_matching_extensions() {
+        assert!(!matches_extension(Path::new("report.pdf"), "txt"));
+        assert!(!matches_extension(Path::new("image.png"), "jpg"));
+        assert!(!matches_extension(Path::new("README"), "txt"));
     }
 }
