@@ -30,6 +30,9 @@ struct Cli {
 
     #[arg(long, value_name = "EXTENSION")]
     extension: Option<String>,
+
+    #[arg(long, help = "Follow symbolic links while avoiding repeated paths")]
+    follow_links: bool,
 }
 
 fn sort_files(files: &mut [(PathBuf, u64)], sort_by: SortBy) {
@@ -73,6 +76,14 @@ fn main() {
 
     println!("Welcome to DiskScope!");
     println!("Selected directory: {}", cli.directory.display());
+    println!(
+        "Symbolic links: {}",
+        if cli.follow_links {
+            "Following"
+        } else {
+            "Skipped"
+        }
+    );
 
     // read contents of selected directory
     let entries = match scanner::list_directory(&cli.directory) {
@@ -100,7 +111,7 @@ fn main() {
     println!();
     println!("Files found recursively:");
 
-    let mut files = match scanner::scan_directory(&cli.directory, cli.max_depth) {
+    let mut files = match scanner::scan_directory(&cli.directory, cli.max_depth, cli.follow_links) {
         Ok(files) => files,
         Err(error) => {
             eprintln!("Error: {}", error);
