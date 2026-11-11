@@ -44,6 +44,7 @@ pub fn list_directory(path: &Path) -> Result<Vec<fs::DirEntry>, String> {
 pub struct ScanReport {
     pub files: Vec<PathBuf>,
     pub warnings: Vec<String>,
+    pub directories_scanned: usize,
 }
 
 /// recursively scans a directory & returns all regular file paths
@@ -56,6 +57,7 @@ pub fn scan_directory(
     let mut report = ScanReport {
         files: Vec::new(),
         warnings: Vec::new(),
+        directories_scanned: 0,
     };
 
     // track directories and files to prevent repeated visits when following symbolic links
@@ -100,6 +102,9 @@ fn scan_recursive(
         .map_err(|error| format!("Cannot read '{}': {}", path.display(), error))?;
 
     visited_dirs.insert(canonical_dir);
+
+    // count each successfully opened directory.
+    report.directories_scanned += 1;
 
     let mut entries = Vec::new();
 
@@ -246,5 +251,15 @@ mod tests {
         let result = scan_directory(&path, Some(0), false);
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn depth_zero_counts_only_root_directory() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+        let report =
+            scan_directory(&path, Some(0), false).expect("Root directory should be readable");
+
+        assert_eq!(report.directories_scanned, 1);
     }
 }

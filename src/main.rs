@@ -120,7 +120,10 @@ fn main() {
         }
     };
 
-    // keep discovered files and warnings for further processing.
+    // preserve the scanner statistics.
+    let directories_scanned = scan_report.directories_scanned;
+    let discovered_files = scan_report.files.len();
+
     let mut files = scan_report.files;
     let mut warnings = scan_report.warnings;
 
@@ -128,6 +131,8 @@ fn main() {
     if let Some(extension) = cli.extension.as_deref() {
         files.retain(|file| matches_extension(file, extension));
     }
+
+    let matching_files = files.len();
 
     // Collect file sizes before sorting and displaying results.
     let mut file_data: Vec<(PathBuf, u64)> = Vec::new();
@@ -216,9 +221,31 @@ fn main() {
         }
     }
 
+    // Display a consolidated summary of the scan.
     println!();
-    println!("Scan warnings: {}", warnings.len());
+    println!("====================================");
+    println!("           Scan Summary             ");
+    println!("====================================");
 
+    println!("Directories scanned: {}", directories_scanned);
+    println!("Files discovered: {}", discovered_files);
+    println!("Files matching filters: {}", matching_files);
+    println!("Files analysed: {}", file_data.len());
+
+    println!("Total analysed size: {}", format::format_size(total_size));
+
+    println!("Warnings: {}", warnings.len());
+
+    println!(
+        "Scan status: {}",
+        if warnings.is_empty() {
+            "Complete for selected scan options"
+        } else {
+            "Partial - some files or directories were skipped"
+        }
+    );
+
+    // Display detailed warnings separately.
     if !warnings.is_empty() {
         eprintln!();
         eprintln!("Warnings encountered during scanning:");
