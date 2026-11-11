@@ -111,13 +111,18 @@ fn main() {
     println!();
     println!("Files found recursively:");
 
-    let mut files = match scanner::scan_directory(&cli.directory, cli.max_depth, cli.follow_links) {
-        Ok(files) => files,
+    let scan_report = match scanner::scan_directory(&cli.directory, cli.max_depth, cli.follow_links)
+    {
+        Ok(report) => report,
         Err(error) => {
             eprintln!("Error: {}", error);
             std::process::exit(1);
         }
     };
+
+    // keep discovered files and warnings for further processing.
+    let mut files = scan_report.files;
+    let mut warnings = scan_report.warnings;
 
     // filter discover files if extension was provided
     if let Some(extension) = cli.extension.as_deref() {
@@ -132,8 +137,8 @@ fn main() {
         let size = match scanner::get_file_size(&file) {
             Ok(size) => size,
             Err(error) => {
-                eprintln!("Error: {}", error);
-                std::process::exit(1);
+                warnings.push(error);
+                continue;
             }
         };
 
@@ -208,6 +213,18 @@ fn main() {
                 path.display(),
                 format::format_size(*size)
             );
+        }
+    }
+
+    println!();
+    println!("Scan warnings: {}", warnings.len());
+
+    if !warnings.is_empty() {
+        eprintln!();
+        eprintln!("Warnings encountered during scanning:");
+
+        for warning in &warnings {
+            eprintln!("  Warning: {}", warning);
         }
     }
 }
