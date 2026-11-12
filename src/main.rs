@@ -3,6 +3,7 @@ mod scanner;
 mod statistics;
 
 use clap::{Parser, ValueEnum};
+use colored::Colorize;
 use std::path::{Path, PathBuf};
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -63,13 +64,16 @@ fn main() {
 
     // validate directory using scanner module
     if let Err(error) = scanner::validate_directory(&cli.directory) {
-        eprintln!("Error: {}", error);
+        eprintln!("{} {}", "Error:".bright_red().bold(), error);
         std::process::exit(1);
     }
 
-    println!("====================================");
-    println!("             DiskScope              ");
-    println!("====================================");
+    println!("{}", "====================================".bright_blue());
+    println!(
+        "{}",
+        "             DiskScope              ".bright_cyan().bold()
+    );
+    println!("{}", "====================================".bright_blue());
 
     println!("A disk space analyser built in Rust.");
     println!("Version: {}", env!("CARGO_PKG_VERSION"));
@@ -90,13 +94,13 @@ fn main() {
     let entries = match scanner::list_directory(&cli.directory) {
         Ok(entries) => entries,
         Err(error) => {
-            eprintln!("Error: {}", error);
+            eprintln!("{} {}", "Error:".bright_red().bold(), error);
             std::process::exit(1);
         }
     };
 
     println!();
-    println!("Directory contents:");
+    println!("{}", "Directory contents:".bright_cyan().bold());
 
     if entries.is_empty() {
         println!("  This directory is empty.");
@@ -110,13 +114,13 @@ fn main() {
     println!("Total entries: {}", entries.len());
 
     println!();
-    println!("Files found recursively:");
+    println!("{}", "Files found recursively:".bright_cyan().bold());
 
     let scan_report = match scanner::scan_directory(&cli.directory, cli.max_depth, cli.follow_links)
     {
         Ok(report) => report,
         Err(error) => {
-            eprintln!("Error: {}", error);
+            eprintln!("{} {}", "Error:".bright_red().bold(), error);
             std::process::exit(1);
         }
     };
@@ -171,7 +175,9 @@ fn main() {
 
     // show the table header
     println!();
-    println!("{:<width$} | {:>15}", "FILE", "SIZE", width = name_width);
+    let table_heading = format!("{:<width$} | {:>15}", "FILE", "SIZE", width = name_width);
+
+    println!("{}", table_heading.bright_blue().bold());
 
     // show the summary underneath the table
     println!("{}-+-{}", "-".repeat(name_width), "-".repeat(15));
@@ -192,12 +198,14 @@ fn main() {
     // show the summary underneath the table
     println!("{}-+-{}", "-".repeat(name_width), "-".repeat(15));
 
-    println!(
+    let total_row = format!(
         "{:<width$} | {:>15}",
         "TOTAL",
         format::format_size(total_size),
         width = name_width
     );
+
+    println!("{}", total_row.bright_green().bold());
 
     println!();
     println!("Total files found: {}", file_data.len());
@@ -207,7 +215,7 @@ fn main() {
     sort_files(&mut largest_files, SortBy::Size);
 
     println!();
-    println!("Largest files (top 5):");
+    println!("{}", "Largest files (top 5):".bright_cyan().bold());
 
     if largest_files.is_empty() {
         println!("  No files found.");
@@ -226,14 +234,19 @@ fn main() {
     let extension_stats = statistics::extension_statistics(&file_data);
 
     println!();
-    println!("====================================");
-    println!("         Extension Statistics       ");
-    println!("====================================");
-
+    println!("{}", "====================================".bright_blue());
     println!(
+        "{}",
+        "         Extension Statistics       ".bright_cyan().bold()
+    );
+    println!("{}", "====================================".bright_blue());
+
+    let extension_heading = format!(
         "{:<24} | {:>10} | {:>15}",
         "EXTENSION", "FILES", "TOTAL SIZE"
     );
+
+    println!("{}", extension_heading.bright_blue().bold());
 
     println!(
         "{}-+-{}-+-{}",
@@ -257,9 +270,12 @@ fn main() {
 
     // show a consolidated summary of the scan
     println!();
-    println!("====================================");
-    println!("           Scan Summary             ");
-    println!("====================================");
+    println!("{}", "====================================".bright_blue());
+    println!(
+        "{}",
+        "           Scan Summary             ".bright_cyan().bold()
+    );
+    println!("{}", "====================================".bright_blue());
 
     println!("Directories scanned: {}", directories_scanned);
     println!("Files discovered: {}", discovered_files);
@@ -268,24 +284,40 @@ fn main() {
 
     println!("Total analysed size: {}", format::format_size(total_size));
 
-    println!("Warnings: {}", warnings.len());
+    let warning_text = format!("Warnings: {}", warnings.len());
 
-    println!(
-        "Scan status: {}",
-        if warnings.is_empty() {
-            "Complete for selected scan options"
-        } else {
+    if warnings.is_empty() {
+        println!("{}", warning_text.bright_green());
+    } else {
+        println!("{}", warning_text.bright_yellow().bold());
+    }
+
+    if warnings.is_empty() {
+        println!(
+            "Scan status: {}",
+            "Complete for selected scan options".bright_green().bold()
+        );
+    } else {
+        println!(
+            "Scan status: {}",
             "Partial - some files or directories were skipped"
-        }
-    );
+                .bright_yellow()
+                .bold()
+        );
+    }
 
     // show detailed warnings separately
     if !warnings.is_empty() {
         eprintln!();
-        eprintln!("Warnings encountered during scanning:");
+        eprintln!(
+            "{}",
+            "Warnings encountered during scanning:"
+                .bright_yellow()
+                .bold()
+        );
 
         for warning in &warnings {
-            eprintln!("  Warning: {}", warning);
+            eprintln!("  {} {}", "Warning:".bright_yellow().bold(), warning);
         }
     }
 }
