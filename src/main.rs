@@ -1,5 +1,6 @@
 mod format;
 mod scanner;
+mod statistics;
 
 use clap::{Parser, ValueEnum};
 use std::path::{Path, PathBuf};
@@ -221,7 +222,40 @@ fn main() {
         }
     }
 
-    // Display a consolidated summary of the scan.
+    // calculate storage usage grouped by file extension
+    let extension_stats = statistics::extension_statistics(&file_data);
+
+    println!();
+    println!("====================================");
+    println!("         Extension Statistics       ");
+    println!("====================================");
+
+    println!(
+        "{:<24} | {:>10} | {:>15}",
+        "EXTENSION", "FILES", "TOTAL SIZE"
+    );
+
+    println!(
+        "{}-+-{}-+-{}",
+        "-".repeat(24),
+        "-".repeat(10),
+        "-".repeat(15)
+    );
+
+    if extension_stats.is_empty() {
+        println!("No files available for extension analysis.");
+    } else {
+        for (extension, stat) in &extension_stats {
+            println!(
+                "{:<24} | {:>10} | {:>15}",
+                extension,
+                stat.file_count,
+                format::format_size(stat.total_bytes)
+            );
+        }
+    }
+
+    // show a consolidated summary of the scan
     println!();
     println!("====================================");
     println!("           Scan Summary             ");
@@ -245,7 +279,7 @@ fn main() {
         }
     );
 
-    // Display detailed warnings separately.
+    // show detailed warnings separately
     if !warnings.is_empty() {
         eprintln!();
         eprintln!("Warnings encountered during scanning:");
