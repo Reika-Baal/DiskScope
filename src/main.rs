@@ -6,6 +6,9 @@ use clap::{Parser, ValueEnum};
 use colored::Colorize;
 use std::path::{Path, PathBuf};
 
+use indicatif::{ProgressBar, ProgressStyle};
+use std::time::{Duration, Instant};
+
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum SortBy {
     Name,
@@ -116,8 +119,39 @@ fn main() {
     println!();
     println!("{}", "Files found recursively:".bright_cyan().bold());
 
-    let scan_report = match scanner::scan_directory(&cli.directory, cli.max_depth, cli.follow_links)
-    {
+    // create animated terminal spinner
+    let progress = ProgressBar::new_spinner();
+
+    progress.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} Scanning... {msg}")
+            .expect("Valid spinner template"),
+    );
+
+    progress.set_message("0 directories | 0 files");
+
+    // keep spinner animated while scanning
+    progress.enable_steady_tick(Duration::from_millis(100));
+
+    // limit message updates to avoid excessive terminal redraws
+    let mut last_update = Instant::now();
+
+    let scan_result = scanner::scan_directory(
+        &cli.directory,
+        cli.max_depth,
+        cli.follow_links,
+        |directories, files| {
+            if last_update.elapsed() >= Duration::from_millis(100) {
+                progress.set_message(format!("{} directories | {} files", directories, files));
+
+                last_update = Instant::now();
+            }
+        },
+    );
+
+    // remove spinner before printing results or errors
+    progress.finish_and_clear();
+
+    let scan_report = match scan_result {
         Ok(report) => report,
         Err(error) => {
             eprintln!("{} {}", "Error:".bright_red().bold(), error);
@@ -125,43 +159,31 @@ fn main() {
         }
     };
 
-    // preserve the scanner statistics.
-    let directories_scanned = scan_report.directories_scanned;
-    let discovered_files = scan_report.files.len();
-
-    let mut files = scan_report.files;
     let mut warnings = scan_report.warnings;
+    let directories_scanned = scan_report.directories_scanned;
 
-    // filter discover files if extension was provided
-    if let Some(extension) = cli.extension.as_deref() {
-        files.retain(|file| matches_extension(file, extension));
-    }
+    let discovered_files = scan_report.files.len();
+    let mut matching_files = 0;
 
-    let matching_files = files.len();
-
-    // Collect file sizes before sorting and displaying results.
     let mut file_data: Vec<(PathBuf, u64)> = Vec::new();
-    let mut total_size: u64 = 0;
 
-    for file in files {
-        let size = match scanner::get_file_size(&file) {
-            Ok(size) => size,
-            Err(error) => {
-                warnings.push(error);
+    for path in scan_report.files {
+        // Apply extension filter if one was provided.
+        if let Some(extension) = cli.extension.as_deref() {
+            if !matches_extension(&path, extension) {
                 continue;
             }
-        };
+        }
 
-        total_size = match total_size.checked_add(size) {
-            Some(total) => total,
-            None => {
-                eprintln!("Error: Total directory size exceeds the supported limit.");
-                std::process::exit(1);
-            }
-        };
+        matching_files += 1;
 
-        file_data.push((file, size));
+        match scanner::get_file_size(&path) {
+            Ok(size) => file_data.push((path, size)),
+            Err(error) => warnings.push(error),
+        }
     }
+
+    let total_size: u64 = file_data.iter().map(|(_, size)| *size).sum();
 
     // sorting method chosen
     sort_files(&mut file_data, cli.sort);
@@ -173,7 +195,7 @@ fn main() {
         .unwrap_or(4)
         .max(4);
 
-    // show the table header
+    // show table header
     println!();
     let table_heading = format!("{:<width$} | {:>15}", "FILE", "SIZE", width = name_width);
 

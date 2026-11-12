@@ -53,6 +53,7 @@ pub fn scan_directory(
     path: &Path,
     max_depth: Option<usize>,
     follow_links: bool,
+    mut on_progress: impl FnMut(usize, usize),
 ) -> Result<ScanReport, String> {
     let mut report = ScanReport {
         files: Vec::new(),
@@ -72,9 +73,13 @@ pub fn scan_directory(
         follow_links,
         &mut visited_dirs,
         &mut visited_files,
+        &mut on_progress,
     )?;
 
     report.files.sort();
+
+    // report final discovery counts
+    on_progress(report.directories_scanned, report.files.len());
 
     Ok(report)
 }
@@ -88,8 +93,9 @@ fn scan_recursive(
     follow_links: bool,
     visited_dirs: &mut HashSet<PathBuf>,
     visited_files: &mut HashSet<PathBuf>,
+    on_progress: &mut impl FnMut(usize, usize),
 ) -> Result<(), String> {
-    // Resolve the directory's actual location.
+    // resolve the directory's actual location
     let canonical_dir = fs::canonicalize(path)
         .map_err(|error| format!("Cannot resolve '{}': {}", path.display(), error))?;
 
@@ -105,6 +111,8 @@ fn scan_recursive(
 
     // count each successfully opened directory.
     report.directories_scanned += 1;
+
+    on_progress(report.directories_scanned, report.files.len());
 
     let mut entries = Vec::new();
 
@@ -181,6 +189,7 @@ fn scan_recursive(
                     follow_links,
                     visited_dirs,
                     visited_files,
+                    on_progress,
                 ) {
                     report.warnings.push(error);
                 }
@@ -205,6 +214,8 @@ fn scan_recursive(
             }
 
             report.files.push(entry_path);
+
+            on_progress(report.directories_scanned, report.files.len());
         }
     }
 
@@ -239,8 +250,7 @@ mod tests {
             .join(format!("diskscope-missing-root-{}", std::process::id()))
             .join("nonexistent");
 
-        let result = scan_directory(&path, None, false);
-
+        let result = scan_directory(&path, None, false, |_, _| {});
         assert!(result.is_err());
     }
 
@@ -248,8 +258,7 @@ mod tests {
     fn scans_existing_directory_without_failing() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-        let result = scan_directory(&path, Some(0), false);
-
+        let result = scan_directory(&path, None, false, |_, _| {});
         assert!(result.is_ok());
     }
 
@@ -257,9 +266,27 @@ mod tests {
     fn depth_zero_counts_only_root_directory() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-        let report =
-            scan_directory(&path, Some(0), false).expect("Root directory should be readable");
-
+        let report = scan_directory(&path, Some(0), false, |_, _| {})
+            .expect("Root directory should be readable");
         assert_eq!(report.directories_scanned, 1);
+    }
+
+    #[test]
+    fn reports_scan_progress() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+        let mut updates = Vec::new();
+
+        let report = scan_directory(&path, Some(0), false, |directories, files| {
+            updates.push((directories, files));
+        })
+        .expect("Scanning should succeed");
+
+        assert!(!updates.is_empty());
+
+        assert_eq!(
+            updates.last().copied(),
+            Some((report.directories_scanned, report.files.len()))
+        );
     }
 }
